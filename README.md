@@ -75,8 +75,13 @@ src/main/java/opengraph/
 ```
 
 Artifacts: `artifacts/opengraph-jforex-1.0.0.jar` (85 entries) —
-SHA-256 `adfcbfb7562d5683e232…` (rebuild: `javac --release 11` then
-`jar cf` over `target/classes`).
+SHA-256 `b81897883d51a0be5d88…` (rebuild: `javac --release 11` then
+`jar cfm` over `target/classes`). The manifest carries
+`jfMainClass: opengraph.strategy.OgStrategy`, so the jar is directly
+packable to `.jfx` via `IClient.packToJfx(File)` and importable into
+JCloud / JForex Remote run. `OgStrategy` performs no file I/O and
+subscribes its instruments in `onStart` — both required for remote
+execution.
 
 ## Execution semantics (the parts that kill naive arb bots)
 
