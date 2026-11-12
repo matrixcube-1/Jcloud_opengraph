@@ -152,6 +152,10 @@ public final class ReplayDay {
         Arrays.fill(lockUntil, Long.MIN_VALUE);
         long tFree = Long.MIN_VALUE;
         long lastEval = Long.MIN_VALUE;
+        // EXT persistMinMs : episode = meme argmax au-dessus de dddMin
+        // en evals consecutives ; l'entree exige t - debut >= persistMinMs.
+        int lastPi = -1;
+        long overSince = Long.MIN_VALUE;
         double pnl = 0.0;
         int trades = 0;
         int aborts = 0;
@@ -169,10 +173,16 @@ public final class ReplayDay {
             eng.sync(t);
             EvalResult evr = eng.evalAt(t, p.freshMs, p.spreadCap,
                     p.commScale, pt);
-            if (evr == null) {
+            if (evr == null || evr.netUsd < p.dddMin) {
+                lastPi = -1;
+                overSince = Long.MIN_VALUE;
                 continue;
             }
-            if (evr.netUsd < p.dddMin || t < tFree) {
+            if (evr.pathIdx != lastPi) {
+                lastPi = evr.pathIdx;
+                overSince = t;
+            }
+            if (t - overSince < p.persistMinMs || t < tFree) {
                 continue;
             }
             int[] bes = basketEdges(pt, evr.pathIdx);
@@ -186,7 +196,11 @@ public final class ReplayDay {
             if (locked) {
                 continue;
             }
-            ExecOutcome r = eng.execSeq(t, evr.pathIdx, ep, pt);
+            // EXT entryDelayMs : detection pricee a t, sequence passee
+            // a t+delay — mesure l'alpha qui survit a une entree plus
+            // lente (separe l'edge reel de la course sur quote stale).
+            ExecOutcome r = eng.execSeq(
+                    (long) (t + p.entryDelayMs), evr.pathIdx, ep, pt);
             for (int x : bes) {
                 long[] ts = dd.symTs[x];
                 int j = Arrays.binarySearch(ts, t);

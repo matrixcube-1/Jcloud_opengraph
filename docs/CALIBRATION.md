@@ -62,3 +62,24 @@ the demo run (audit F9).
 Replay live journals at **1.0 ms/leg** (JCloud colocated) with the §10
 persistence filter (Hawkes `S(h)`, Cox survival) — decides whether the
 ~30 % surviving episodes constitute executable alpha.
+
+### Verdicts mesurés (12/11)
+
+- **Journal venue cTrader** (4 jours, lat=1,0 ms) : survie −54 %,
+  identique à 2,5 ms — le kill est la sélection adverse sur
+  rafraîchissement de quote stale, pas la latence des jambes. Aucun
+  seuil `fresh_ms` ne réalise un gain répliqué.
+- **Corpus Dukascopy 22/10 — test de borne** : à `ddd=-5`,
+  `comm_scale=0.01`, `lat=1 ms` → **11 244 trades, −25 086 $**. Le feed
+  est arbitrage-clean à cette échelle : des détections existent mais
+  aucune n'est profitable après exécution, même à coûts quasi nuls.
+
+### Espace de recherche — flags `--ext` (opt-in)
+
+Le miroir v5 scellé est préservé par défaut. `--ext` ajoute les deux
+dimensions du cycle détection→fill : `entryDelayMs` log[0,1000]
+(exécution retardée — sépare l'edge de l'artefact staleness) et
+`persistMinMs` [0,2000] (le signal doit persister avant d'exécuter).
+`--refine-top K --refine-n M` ajoute une phase quasi-TPE gaussienne
+autour des meilleurs faisables. Les rapports incluent `pire_jour`
+(robustesse multi-jours).

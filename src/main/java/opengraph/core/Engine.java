@@ -957,6 +957,13 @@ public class Engine {
         public double freshMs, spreadCap, commScale, dddMin, latMs;
         public double tauSlipBp, qMin, cooldownS;
         public boolean volGuard;
+        /** EXT (opt-in, hors miroir Optuna scelle) : delai d'entree
+         * applique a l'execution — la detection est pricee a t mais la
+         * sequence part a t+entryDelayMs. Defaut 0 = semantique scellee. */
+        public double entryDelayMs;
+        /** EXT : le signal (meme argmax net>=dddMin) doit persister au
+         * moins persistMinMs avant d'executer. Defaut 0 = inactif. */
+        public double persistMinMs;
 
         public Params() {}
 

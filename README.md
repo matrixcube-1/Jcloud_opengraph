@@ -75,7 +75,7 @@ src/main/java/opengraph/
 ```
 
 Artifacts: `artifacts/opengraph-jforex-1.0.0.jar` (85 entries) —
-SHA-256 `047b95b825b8022a…` (rebuild: `javac --release 11` then
+SHA-256 `e2eb471d86aec4ab…` (rebuild: `javac --release 11` then
 `jar cfm` over `target/classes`). The manifest carries
 `jfMainClass: opengraph.strategy.OgStrategy`, so the jar is directly
 packable to `.jfx` via `IClient.packToJfx(File)` and importable into
