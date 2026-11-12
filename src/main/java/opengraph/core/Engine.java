@@ -618,7 +618,7 @@ public class Engine {
             int[] ab = edgeNodes(e);
             int d = from == ab[0] ? 1 : -1;
             int node = from; // devise convertie par cet ordre
-            double tF = t + ep.latMs;
+            double tF = t + ep.latMs + jit(t0, oi, ep.jitterMs);
 
             double[] qs = quoteAtF(si, t);
             double qSend = qs != null
@@ -713,6 +713,17 @@ public class Engine {
         return new ExecOutcome.Done(
                 usdEnd + cash - Fees.NOTIONAL_USD - commRt - unwind,
                 filled, parts, t - t0);
+    }
+
+    /** Jitter de latence deterministe +-jitterMs en (t0, oi) — reproductible
+     *  a l'identique entre runs (parite) sans etat RNG partage. */
+    private static double jit(long t0, int oi, double jitterMs) {
+        if (jitterMs <= 0.0) {
+            return 0.0;
+        }
+        long h = t0 * 2654435761L + oi * 40503L;
+        double u = (h & 0xFFFF) / 65535.0;      // [0,1] deterministe
+        return jitterMs * (2.0 * u - 1.0);      // [-jitter, +jitter]
     }
 
     private ExecOutcome abort(AbortReason reason, double aCost, double cash,

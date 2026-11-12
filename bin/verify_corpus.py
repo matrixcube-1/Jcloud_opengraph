@@ -39,6 +39,22 @@ MIN_TICKS_H_FX = 100          # sous cette densité une heure FX est suspecte
 LOG_RATIO_MAX = 0.35          # |ln(px/ref)| max ≈ 40 % d'écart toléré
 
 
+def mandatory_hours(day):
+    """Heures où le marché FX doit avoir des ticks — calendrier réel :
+    sam=fermé, dim=ouvre ~22:00 UTC, ven=ferme ~21:00 UTC (heures 21-23
+    optionnelles : l'heure exacte de clôture dépend du DST US).
+    Les fichiers présents hors heures obligatoires sont vérifiés pareil."""
+    import datetime
+    wd = datetime.date.fromisoformat(day).weekday()
+    if wd == 5:                      # samedi
+        return set()
+    if wd == 6:                      # dimanche
+        return {22, 23}
+    if wd == 4:                      # vendredi
+        return set(range(21))
+    return set(range(24))
+
+
 def check_file(path):
     """-> (n_ticks, issues, first_ms, last_ms, px_sample)"""
     issues = []
@@ -102,8 +118,10 @@ def main():
 
     root, day = Path(args.root), args.day
     syms = args.syms.split(",")
-    total_files = 24 * len(syms)
-    print(f"== corpus {root} jour {day} — {len(syms)} paires x 24h "
+    mandatory = mandatory_hours(day)
+    total_files = len(mandatory) * len(syms)
+    print(f"== corpus {root} jour {day} — {len(syms)} paires x "
+          f"{len(mandatory)}h obligatoires (calendrier FX) "
           f"= {total_files} fichiers attendus ==\n")
 
     # ledger : fichiers attendus mais jamais téléchargés
@@ -123,7 +141,7 @@ def main():
         daydir = root / sym / day
         files = sorted(daydir.glob("*.csv")) if daydir.is_dir() else []
         hours = {int(f.stem) for f in files if f.stem.isdigit()}
-        missing = sorted(set(range(24)) - hours)
+        missing = sorted(mandatory - hours)
         day_ticks = 0
         sym_issues = []
         for h in sorted(hours):

@@ -58,7 +58,7 @@ public final class Pipeline {
     public java.util.function.BiConsumer<EvalResult, Boolean> onBest;
     /** BIR ajuste courant (NaN = facteur omis). */
     public double birAdj = Double.NaN;
-    public double latMs = 2.5;
+    public double latMs = 60.0;
 
     public Pipeline(Engine eng, PathTables pt, ExtPathTables xt,
                     CoxSurvival cox, double tauPersist, double dddMin) {

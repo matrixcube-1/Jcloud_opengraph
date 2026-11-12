@@ -2,8 +2,11 @@ package opengraph.core;
 
 /** Parametres d'une sequence d'execution (exec.rs::ExecParams). */
 public final class ExecParams {
-    /** Latence par jambe (ms, flottant). */
+    /** Latence par jambe end-to-end (ms, flottant). */
     public final double latMs;
+    /** Jitter symetrique +- ajoute a latMs par ordre (ms). Tirage
+     *  deterministe en (t0, oi) — parite Rust preservee. Defaut 0. */
+    public final double jitterMs;
     /** Mouvement de prix tolere entre envoi et fill, en bp. */
     public final double tauSlipBp;
     /** Fraction minimale de fill acceptee (rejet en dessous). */
@@ -34,7 +37,16 @@ public final class ExecParams {
                       boolean volGuard, double staleMs,
                       double spreadCapMult, double mAbortUsd, int nU,
                       boolean docMode) {
+        this(latMs, 0.0, tauSlipBp, qMin, volGuard, staleMs,
+                spreadCapMult, mAbortUsd, nU, docMode);
+    }
+
+    public ExecParams(double latMs, double jitterMs, double tauSlipBp,
+                      double qMin, boolean volGuard, double staleMs,
+                      double spreadCapMult, double mAbortUsd, int nU,
+                      boolean docMode) {
         this.latMs = latMs;
+        this.jitterMs = jitterMs;
         this.tauSlipBp = tauSlipBp;
         this.qMin = qMin;
         this.volGuard = volGuard;

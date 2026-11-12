@@ -110,6 +110,10 @@ public class OgStrategy implements IStrategy {
     private boolean halted;
     private boolean inSeq;
     private long seqCounter;
+    private long lastHb;
+    private double hbMaxNet = Double.NEGATIVE_INFINITY;
+    private int hbMaxPath = -1;
+    private long hbTicks;
 
     /** Un fill observe : fraction + prix d'ouverture (contrat execSettle). */
     private static final class Fill {
@@ -243,11 +247,14 @@ public class OgStrategy implements IStrategy {
         if (docMode) {
             probes[si].push(t, 0.5 * (tick.getBid() + tick.getAsk()));
         }
+        hbTicks++;
         if (inSeq || !warmed() || t < lastSeqEnd + minSeqGapMs) {
+            heartbeat(t, null);
             return;
         }
         if (docMode) {
             Pipeline.Out o = pipe.decide(t, freshMs, spreadCap, commScale);
+            heartbeat(t, o.eval);
             if (o.decision != Pipeline.Decision.FIRE) {
                 return;
             }
@@ -261,12 +268,38 @@ public class OgStrategy implements IStrategy {
             return;
         }
         EvalResult ev = eng.evalAt(t, freshMs, spreadCap, commScale, pt);
+        heartbeat(t, ev);
         if (ev == null || ev.netUsd < dddMin) {
             return;
         }
         log(String.format("OPP t=%d net=%.4f path=%d", t, ev.netUsd,
                 ev.pathIdx));
         runSequence(ev.pathIdx, t);
+    }
+
+    /** Mesure du flux : meilleur net argmax observe, meme sous seuil —
+        transforme le silence en donnee (distribution, pas binaire). */
+    private void heartbeat(long t, EvalResult ev) {
+        if (ev != null && ev.netUsd > hbMaxNet) {
+            hbMaxNet = ev.netUsd;
+            hbMaxPath = ev.pathIdx;
+        }
+        if (t - lastHb < 60_000) {
+            return;
+        }
+        lastHb = t;
+        int w = 0;
+        for (int s : seen) {
+            if (s >= warmupTicks) {
+                w++;
+            }
+        }
+        log(String.format("HB t=%d ticks=%d warmed=%d/%d maxNet=%.4f path=%d",
+                t, hbTicks, w, seen.length,
+                hbMaxNet == Double.NEGATIVE_INFINITY ? 0 : hbMaxNet,
+                hbMaxPath));
+        hbMaxNet = Double.NEGATIVE_INFINITY;
+        hbMaxPath = -1;
     }
 
     private boolean warmed() {
