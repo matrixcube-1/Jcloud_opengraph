@@ -3,7 +3,7 @@ name = "opengraph"
 version = "0.1.0"
 edition = "2021"
 description = "Moteur d'arbitrage FX à chemins ouverts — Convention A, univers FX pur (Annexe J)."
-license = "LicenseRef-Proprietary"
+license = "MIT"
 publish = false
 
 [lib]

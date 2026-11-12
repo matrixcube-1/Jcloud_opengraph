@@ -20,8 +20,14 @@ across mixed instruments are where residual desync survives — if anywhere.
 ## Build & verify (one command)
 
 ```bash
-bash verify_all.sh            # compile → 131 JUnit tests → VerifyAll chain
+export JF_API=/path/to/jforex-api.jar          # Dukascopy public repo, scope provided
+export JUNIT_JAR=/path/to/junit-platform-console-standalone.jar
+# JDK / JAVA_HOME optional — defaults to javac/java on PATH
+bash verify_all.sh [corpus_root]               # compile → 134 JUnit tests → VerifyAll chain
 ```
+
+Without `corpus_root` the chain runs fully on the synthetic book and
+SKIPs the corpus replay step explicitly.
 
 `VerifyAll` runs the full audit end-to-end, fail-fast:
 
@@ -68,7 +74,9 @@ src/main/java/opengraph/
 └─ validation/ MonteCarlo (E9), ProofChecks (closed-form counts)
 ```
 
-Artifacts: `artifacts/opengraph-jforex-1.0.0.jar` (73 classes).
+Artifacts: `artifacts/opengraph-jforex-1.0.0.jar` (85 entries) —
+SHA-256 `adfcbfb7562d5683e232…` (rebuild: `javac --release 11` then
+`jar cf` over `target/classes`).
 
 ## Execution semantics (the parts that kill naive arb bots)
 
@@ -102,6 +110,8 @@ Artifacts: `artifacts/opengraph-jforex-1.0.0.jar` (73 classes).
 
 ## Docs
 
+- [docs/AUDIT_RESPONSE.md](docs/AUDIT_RESPONSE.md) — resolution of the
+  external audit's 11 findings (F1–F11)
 - [AUDIT_MAP.md](AUDIT_MAP.md) — complete audit cartography with proofs
 - [DEVIATIONS.md](DEVIATIONS.md) — spec→code deviations + hot-path map
 - [docs/CALIBRATION.md](docs/CALIBRATION.md) — calibration campaign results

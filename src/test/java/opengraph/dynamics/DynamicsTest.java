@@ -182,4 +182,72 @@ public class DynamicsTest {
         // S trop faible -> sous seuil
         assertFalse(gate.admit(0.2, 0.6, 0.9));
     }
+
+    // ---------- DynamicsProbe : non-melange des instruments (audit F1) ----------
+
+    /**
+     * Une sonde alimentee par les mids de deux instruments aux echelles
+     * differentes voit son sigma roulant gonfler par les sauts
+     * inter-instruments (~4.9 par bascule EURUSD<->USDJPY vs ~1e-5 de bruit
+     * reel) : la detection de chocs est aveuglee, B et S(h) corrompus.
+     * Le routage par serie d'OgStrategy est donc obligatoire.
+     */
+    @Test
+    public void probeMixedInstrumentsInflatesSigma() {
+        CoxSurvival cox = new CoxSurvival(0.01, 0.1, 0.01);
+        DynamicsProbe mixed = new DynamicsProbe(2048, cox);
+        DynamicsProbe clean = new DynamicsProbe(2048, cox);
+        Random rng = new Random(7);
+        for (int i = 0; i < 200; i++) {
+            mixed.push(1_000L + i, i % 2 == 0 ? 1.10 : 150.0);
+            clean.push(1_000L + i, 1.10 * (1 + rng.nextGaussian() * 1e-5));
+        }
+        assertTrue(clean.sigma() > 0.0 && clean.sigma() < 1e-3,
+                "sigma serie propre = " + clean.sigma());
+        assertTrue(mixed.sigma() > 1e3 * clean.sigma(),
+                "sigma mixte = " + mixed.sigma() + " vs propre = "
+                        + clean.sigma());
+    }
+
+    /**
+     * Consequence : un vrai choc (+2 %) sur un instrument devient invisible
+     * dans la serie mixte (|r| < 2*sigma gonfle) alors que la sonde propre
+     * le detecte. La couche §10 perd exactement le signal qu'elle doit
+     * mesurer.
+     */
+    @Test
+    public void probeMixedInstrumentsBlindsRealShocks() {
+        CoxSurvival cox = new CoxSurvival(0.01, 0.1, 0.01);
+        DynamicsProbe mixed = new DynamicsProbe(2048, cox);
+        DynamicsProbe clean = new DynamicsProbe(2048, cox);
+        Random rng = new Random(7);
+        for (int i = 0; i < 200; i++) {
+            mixed.push(1_000L + i, i % 2 == 0 ? 1.10 : 150.0);
+            clean.push(1_000L + i, 1.10 * (1 + rng.nextGaussian() * 1e-5));
+        }
+        assertEquals(0.0, mixed.excitation());
+        // meme choc +2 % sur l'instrument 1.10 pousse dans les deux sondes
+        double bClean = clean.excitation();
+        clean.push(1_201L, 1.10 * 1.02);
+        mixed.push(1_201L, 1.10 * 1.02);
+        assertTrue(clean.excitation() > bClean,
+                "sonde propre : le choc reel doit etre detecte");
+        assertEquals(0.0, mixed.excitation(),
+                "sonde mixte : le meme choc passe sous le sigma gonfle");
+    }
+
+    @Test
+    public void probePerInstrumentDetectsRealShock() {
+        CoxSurvival cox = new CoxSurvival(0.01, 0.1, 0.01);
+        DynamicsProbe clean = new DynamicsProbe(2048, cox);
+        Random rng = new Random(7);
+        for (int i = 0; i < 200; i++) {
+            clean.push(1_000L + i, 1.10 * (1 + rng.nextGaussian() * 1e-5));
+        }
+        double before = clean.excitation();
+        clean.push(1_201L, 1.10 * 1.02);   // vrai choc +2 %
+        assertTrue(clean.excitation() > before,
+                "choc reel non detecte : B " + before + " -> "
+                        + clean.excitation());
+    }
 }

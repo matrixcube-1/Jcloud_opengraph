@@ -7,8 +7,10 @@
 pub const NOTIONAL_USD: f64 = 10_000.0;
 
 /// Commission par côté et par 100 K$ — calée sur les fills réels demo
-/// IC Markets (10/11/2026, n=37) : médiane 3,63, max 4,00 — le nominal
-/// négocié était 3,00 (6 $ A/R) ; on retient le pire cas observé.
+/// IC Markets cTrader (10/11/2026, n=37) : médiane 3,63, max 4,00 — le
+/// nominal négocié était 3,00 (6 $ A/R) ; on retient le pire cas observé.
+/// ⚠ Venue de calibration ≠ cible : la structure de commissions Dukascopy
+/// diffère — à recalibrer sur fills demo Dukascopy (audit F9).
 pub const COMM_PER_100K_USD: f64 = 4.00;
 
 /// Commission par côté et par jambe au notionnel courant — proportionnelle

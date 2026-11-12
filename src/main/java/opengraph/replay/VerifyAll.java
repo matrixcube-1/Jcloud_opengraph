@@ -66,7 +66,7 @@ public final class VerifyAll {
     }
 
     public static void main(String[] args) throws Exception {
-        String root = args.length > 0 ? args[0] : "C:/arb_duka/data";
+        String root = args.length > 0 ? args[0] : null;
         PathTables pt = PathTables.build();
         ExtPathTables xt = ExtPathTables.build(pt);
 
@@ -178,7 +178,13 @@ public final class VerifyAll {
                 String.format("died=%d pnl=%.2f", s0.died,
                         s0.pnlRealizableSum));
         // donnees reelles : eval + MC sur le meilleur chemin observe
-        try {
+        boolean corpus = root != null
+                && java.nio.file.Files.isDirectory(java.nio.file.Paths.get(root));
+        if (!corpus) {
+            System.out.println("  [SKIP] corpus reel absent — la chaine reste"
+                    + " prouvee sur livre synthetique + MC ; fournir"
+                    + " dataRoot pour activer le replay corpus");
+        } else try {
             Engine er = DataLoader.loadFxEngine(java.nio.file.Paths.get(root),
                     new String[] {"2026-10-22"});
             long tm = er.ev.get(er.ev.size() / 2)[0];
@@ -200,7 +206,8 @@ public final class VerifyAll {
                                 sm.meanRealizable()));
             }
         } catch (Exception ex) {
-            ok(false, "corpus reel chargeable", ex.getMessage());
+            ok(false, "corpus reel chargeable sous " + root,
+                    String.valueOf(ex.getMessage()));
         }
 
         System.out.println();

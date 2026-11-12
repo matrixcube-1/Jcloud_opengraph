@@ -76,4 +76,5 @@ survie=0 : tout meurt ; corpus réel : eval→execSeq chaîné).
 - **Exec bout** : évalué, `SKIP` en live (Solution A — FX only).
 - **Parité tick-par-tick Java↔Rust** execSeq/settle : fixture dorée + tests
   E1–E9 couvrent la sémantique ; pas de rejoue croisée complète.
-- **JCloud** : upload via l'espace client Dukascopy (compte DEMO requis).
+- **JCloud** : upload via espace client Dukascopy (compte DEMO sauvegardé
+  dans JForex4 local — `users.xml`, dernier login 07/11).

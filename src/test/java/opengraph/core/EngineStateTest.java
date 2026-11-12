@@ -136,12 +136,13 @@ class EngineStateTest {
         e.ingest(si, new Quote(2_000, 1.10, 1.104, 1.0));
         e.ingest(si, new Quote(3_000, 1.10, 1.103, 1.0));
         assertEquals(0.003, e.med[si], 1e-12);
-        // ts egal : quote remplacee, spread du tick recu compte quand meme
+        // ts egal : quote remplacee ; la re-emission est dedupliquee —
+        // son spread n'entre PAS dans la mediane (audit F10)
         e.ingest(si, new Quote(3_000, 1.10, 1.10, 1.0));
         assertEquals(3_000, e.lastT[si]);
         assertEquals(1.10, e.ask[si]);
         assertEquals(3, e.data.get(si).len());
-        assertEquals(0.0025, e.med[si], 1e-12);
+        assertEquals(0.003, e.med[si], 1e-12); // {0.002,0.004,0.003}
     }
 
     /** MED_CUTOFF (port de engine.rs) : la mediane n'accumule que les ticks

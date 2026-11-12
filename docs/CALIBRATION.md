@@ -35,6 +35,19 @@ losing trades, −25 580 $).
 At 2.5 ms/leg simulated latency: realized mean ≈ −1 $/cycle; ~30 % of
 episodes cluster +4–5 $. Detection is real; survival is latency-bound.
 
+## Latency convention (post-audit)
+
+`ReplayDay.LAT_MS` default = **5.0 ms/leg** (JCloud colocation, comme
+`optuna_duka`). The shipped replay honors `Params.latMs` — set it via
+`--lat_ms 2.5` etc. and report the value in every results table (audit
+F11). The 2.5 ms/leg figure quoted for live-journal replays below came
+from the external Python replay tool, not this CLI.
+
+Commission `4.00 $/side/100K` was calibrated on **IC Markets cTrader**
+demo fills (n=37) — the deployment target is Dukascopy JCloud, whose
+commission structure differs: recalibrate on Dukascopy demo fills during
+the demo run (audit F9).
+
 ## Correction history (why earlier numbers were inflated)
 
 1. Mid-point residual marking → executable bid/ask (Convention A):

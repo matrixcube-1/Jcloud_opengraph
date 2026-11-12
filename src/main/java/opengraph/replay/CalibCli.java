@@ -26,7 +26,8 @@ import opengraph.core.PathTables;
  * meilleur pnl moyen/jour est affiche puis evalue UNE fois sur
  * --holdout s'il est fourni.
  *
- * Latence fixe LAT_MS=5.0 (colocalisation JCloud) comme optuna_duka.
+ * Latence par jambe : defaut ReplayDay.LAT_MS=5.0 (colocalisation
+ * JCloud), surchargeable via --lat_ms (a reporter dans chaque resultat).
  */
 public final class CalibCli {
 
@@ -46,6 +47,8 @@ public final class CalibCli {
                 p.tauSlipBp = v; break;
             case "qMin": case "q_min":
                 p.qMin = v; break;
+            case "latMs": case "lat_ms":
+                p.latMs = v; break;
             default:
                 throw new IllegalArgumentException("param inconnu: " + key);
         }
@@ -96,7 +99,8 @@ public final class CalibCli {
         }
 
         if (trials > 0) {
-            randomSearch(root, days, holdout, trials, threads, seed);
+            randomSearch(root, days, holdout, trials, threads, seed,
+                    base.latMs);
             return;
         }
 
@@ -117,9 +121,10 @@ public final class CalibCli {
         List<String> skeys = new ArrayList<>(sweeps.keySet());
         if (skeys.isEmpty()) {
             double[] r = evalAll(eng, pt, dds, base);
-            System.out.printf("pnl=%.2f trades=%d aborts=%d abortRate=%.3f%n",
+            System.out.printf("pnl=%.2f trades=%d aborts=%d abortRate=%.3f"
+                            + " lat=%.1f%n",
                     r[0], (int) r[1], (int) r[2],
-                    r[1] > 0 ? r[2] / r[1] : 0.0);
+                    r[1] > 0 ? r[2] / r[1] : 0.0, base.latMs);
             return;
         }
 
@@ -154,11 +159,12 @@ public final class CalibCli {
                 bestDesc = sb.toString();
             }
         }
-        System.out.printf("BEST %s -> pnl=%.2f trades=%.0f aborts=%.0f%n",
-                bestDesc, bestR[0], bestR[1], bestR[2]);
+        System.out.printf("BEST %s -> pnl=%.2f trades=%.0f aborts=%.0f"
+                        + " lat=%.1f%n",
+                bestDesc, bestR[0], bestR[1], bestR[2], best.latMs);
 
         if (holdout != null && best != null) {
-            // Engine combine + cutoff MED_CUTOFF : la mediane du cap
+            // Engine combine + cutoff (MED_CUTOFF du POC Python) : la mediane du cap
             // spread_cap x med vient de l'in-sample seul (sinon la
             // journee holdout fuite dans la gate).
             String[] all = new String[days.length + 1];
@@ -168,8 +174,9 @@ public final class CalibCli {
             heng.setMedUntil(DataLoader.epochMs(holdout));
             ReplayDay.DayData hd = ReplayDay.dayData(heng, holdout);
             double[] r = ReplayDay.replayDay(heng, pt, hd, best);
-            System.out.printf("HOLDOUT %s pnl=%.2f trades=%.0f aborts=%.0f%n",
-                    holdout, r[0], r[1], r[2]);
+            System.out.printf("HOLDOUT %s pnl=%.2f trades=%.0f aborts=%.0f"
+                            + " lat=%.1f%n",
+                    holdout, r[0], r[1], r[2], best.latMs);
         }
     }
 
@@ -181,8 +188,9 @@ public final class CalibCli {
      * [1,3], comm_scale [1,1.3], ddd_min [0,1], tau_slip_bp [1,4],
      * q_min [0.3,0.9]. Contraintes : trades>=10 et abort_rate<=30 %.
      */
-    private static Engine.Params sample(java.util.Random rng) {
-        Engine.Params p = new Engine.Params(0, 0, 0, 0, ReplayDay.LAT_MS,
+    private static Engine.Params sample(java.util.Random rng,
+                                        double latMs) {
+        Engine.Params p = new Engine.Params(0, 0, 0, 0, latMs,
                 0, 0, 0.0, false);
         p.freshMs = Math.exp(Math.log(2_000.0) + rng.nextDouble()
                 * (Math.log(30_000.0) - Math.log(2_000.0)));
@@ -196,9 +204,10 @@ public final class CalibCli {
 
     private static String desc(Engine.Params p) {
         return String.format(
-                "fresh=%.0f cap=%.2f comm=%.2f ddd=%.3f tau=%.2f qmin=%.2f",
+                "fresh=%.0f cap=%.2f comm=%.2f ddd=%.3f tau=%.2f qmin=%.2f"
+                        + " lat=%.1f",
                 p.freshMs, p.spreadCap, p.commScale, p.dddMin,
-                p.tauSlipBp, p.qMin);
+                p.tauSlipBp, p.qMin, p.latMs);
     }
 
     private static class TrialRec {
@@ -222,11 +231,11 @@ public final class CalibCli {
      */
     private static void randomSearch(Path root, String[] days,
                                      String holdout, int trials,
-                                     int threads, long seed)
+                                     int threads, long seed, double latMs)
             throws Exception {
         System.err.printf("Random search : %d essais, %d threads, "
-                + "seed=%d, %d jours in-sample%n",
-                trials, threads, seed, days.length);
+                + "seed=%d, lat=%.1f ms, %d jours in-sample%n",
+                trials, threads, seed, latMs, days.length);
         List<TrialRec> all = java.util.Collections.synchronizedList(
                 new ArrayList<>());
         Thread[] ts = new Thread[threads];
@@ -245,7 +254,7 @@ public final class CalibCli {
                     // skip deterministe pour que les essais soient
                     // identiques quel que soit le nombre de threads
                     for (int i = 0; i < trials; i++) {
-                        Engine.Params p = sample(rng);
+                        Engine.Params p = sample(rng, latMs);
                         if (i % threads != wid) {
                             continue;
                         }

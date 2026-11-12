@@ -99,7 +99,8 @@ public class OgStrategy implements IStrategy {
     private PathTables pt;
     private ExtPathTables xt;
     private Pipeline pipe;
-    private DynamicsProbe probe;
+    /** Une sonde par serie (jamais de melange inter-instruments, F1). */
+    private DynamicsProbe[] probes;
     private IEngine jEngine;
     private IConsole console;
     private final Instrument[] instr = new Instrument[Universe.FX.length];
@@ -135,7 +136,17 @@ public class OgStrategy implements IStrategy {
         CoxSurvival cox = new CoxSurvival(hawkMu, hawkAlpha, hawkBeta);
         pipe = new Pipeline(eng, pt, xt, cox, tauPersist, dddMin);
         pipe.mSeq = mSeq;
-        probe = new DynamicsProbe(2048, cox);
+        probes = new DynamicsProbe[eng.sidx.size()];
+        for (int i = 0; i < probes.length; i++) {
+            probes[i] = new DynamicsProbe(2048, cox);
+        }
+        // la sonde lue = instrument d'entree du chemin gagnant (F1)
+        pipe.onBest = (ev, isBout) -> {
+            int fp = isBout ? xt.fxPi[ev.pathIdx] : ev.pathIdx;
+            DynamicsProbe p = probes[eng.fxSi[pt.pE[fp][0]]];
+            pipe.hurst = p.hurst();
+            pipe.excitationB = p.excitation();
+        };
         Set<Instrument> sub = new HashSet<>();
         for (int e = 0; e < Universe.FX.length; e++) {
             instr[e] = Instrument.fromString(
@@ -214,29 +225,28 @@ public class OgStrategy implements IStrategy {
         }
         long t = tick.getTime();
         int e = edgeOf(instrument);
+        int si;
         if (e >= 0) {
-            eng.ingest(eng.fxSi[e], new Quote(t, tick.getBid(),
-                    tick.getAsk(),
-                    Math.max(tick.getAskVolume(), tick.getBidVolume())));
+            si = eng.fxSi[e];
             seen[e]++;
         } else if (docMode) {
             int b = boutOf(instrument);
             if (b < 0 || eng.boutSi[b] < 0) {
                 return;
             }
-            eng.ingest(eng.boutSi[b], new Quote(t, tick.getBid(),
-                    tick.getAsk(),
-                    Math.max(tick.getAskVolume(), tick.getBidVolume())));
+            si = eng.boutSi[b];
         } else {
             return;
+        }
+        eng.ingest(si, new Quote(t, tick.getBid(), tick.getAsk(),
+                Math.max(tick.getAskVolume(), tick.getBidVolume())));
+        if (docMode) {
+            probes[si].push(t, 0.5 * (tick.getBid() + tick.getAsk()));
         }
         if (inSeq || !warmed() || t < lastSeqEnd + minSeqGapMs) {
             return;
         }
         if (docMode) {
-            probe.push(t, 0.5 * (tick.getBid() + tick.getAsk()));
-            pipe.hurst = probe.hurst();
-            pipe.excitationB = probe.excitation();
             Pipeline.Out o = pipe.decide(t, freshMs, spreadCap, commScale);
             if (o.decision != Pipeline.Decision.FIRE) {
                 return;
@@ -413,10 +423,17 @@ public class OgStrategy implements IStrategy {
         }
     }
 
-    /** Deboucle chaque jambe remplie (close par montant de fill). */
+    /**
+     * Deboucle chaque jambe remplie (close par montant de fill). Un ordre
+     * deja CLOSED (partiel abortif ferme en amont) est saute — sa position
+     * est deja a plat, le second close() ne ferait que bruiter le journal.
+     */
     private void unwind(List<Fill> fills, long seqId) {
         for (int i = fills.size() - 1; i >= 0; i--) {
             Fill fl = fills.get(i);
+            if (fl.order.getState() == IOrder.State.CLOSED) {
+                continue;
+            }
             try {
                 fl.order.close();
             } catch (JFException ex) {

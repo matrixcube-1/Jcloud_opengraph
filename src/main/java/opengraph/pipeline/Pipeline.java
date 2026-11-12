@@ -49,6 +49,13 @@ public final class Pipeline {
     public double hurst = 0.5;
     /** Excitation Hawkes courante B (mise a jour par l'appelant). */
     public double excitationB = 0.0;
+    /**
+     * Rafraichit hurst/excitationB a partir du chemin gagnant — appele par
+     * decide() juste avant les portes E2/p_persist (le gagnant n'est connu
+     * qu'apres l'eval interne). Args : (gagnant, estBout). Null = valeurs
+     * pre-reglees par l'appelant.
+     */
+    public java.util.function.BiConsumer<EvalResult, Boolean> onBest;
     /** BIR ajuste courant (NaN = facteur omis). */
     public double birAdj = Double.NaN;
     public double latMs = 2.5;
@@ -86,6 +93,9 @@ public final class Pipeline {
         }
         if (best == null || best.netUsd < dddMin) {
             return new Out(Decision.NO_EDGE, best, isBout, 0, 0);
+        }
+        if (onBest != null) {
+            onBest.accept(best, isBout);
         }
         // E2 : S(T_seq) > 0.30 — ordres = jambes + [entree] + [sortie]
         // (+1 pour la jambe bout)

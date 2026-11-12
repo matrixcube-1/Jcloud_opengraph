@@ -31,7 +31,9 @@ public final class ReplayDay {
     public static final long EVAL_EVERY_MS = 500;
     public static final long MIN_SEQ_GAP_MS = 2_000;
     public static final long MAX_HOLD_MS = 5_000;
-    /** Latence colocalisee JForex/JCloud — fixe, pas optimisee. */
+    /** Latence colocalisee JForex/JCloud par defaut — la valeur d'une
+     * campagne vient de Params.latMs (CLI --lat_ms) et doit etre
+     * reportee dans chaque tableau de resultats. */
     public static final double LAT_MS = 5.0;
 
     /**
@@ -153,7 +155,7 @@ public final class ReplayDay {
         double pnl = 0.0;
         int trades = 0;
         int aborts = 0;
-        ExecParams ep = new ExecParams(LAT_MS, p.tauSlipBp, p.qMin, false);
+        ExecParams ep = new ExecParams(p.latMs, p.tauSlipBp, p.qMin, false);
 
         for (int i = 0; i < dd.ev.length; i++) {
             long t = dd.ev[i];

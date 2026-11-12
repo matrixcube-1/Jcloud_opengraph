@@ -72,4 +72,9 @@ public final class DynamicsProbe {
     public double excitation() {
         return excitation;
     }
+
+    /** Sigma roulant courant des log-returns (0 tant que seen<=10). */
+    public double sigma() {
+        return seen > 10 ? Math.sqrt(sigmaM2 / Math.min(seen, 50)) : 0.0;
+    }
 }

@@ -197,8 +197,8 @@ public class Engine {
      * Ingestion live : ajoute le tick a la serie, met a jour la mediane
      * incrementale du spread et publie l'etat — jamais de quote future.
      * Preconditions : flux par instrument non decroissant en tsMs.
-     * Un tsMs egal au dernier remplace la quote ; le spread est pousse
-     * dans la mediane a chaque tick recu.
+     * Un tsMs egal au dernier remplace la quote ; le spread n'entre dans
+     * la mediane qu'a chaque NOUVELLE estampille (dedup re-emission).
      * Quotes rejetees : bid/ask non finis ou croises (ask < bid).
      */
     public void ingest(int si, Quote q) {
@@ -206,15 +206,18 @@ public class Engine {
             return;
         }
         SymbolSeries s = data.get(si);
+        boolean appended;
         if (s.len() > 0 && s.ts[s.len() - 1] == q.tsMs) {
             s.replaceLast(q.bid, q.ask, q.vol, q.vol);
+            appended = false;
         } else {
             if (s.len() > 0 && q.tsMs <= s.ts[s.len() - 1]) {
                 return; // tick hors ordre — casserait partitionPoint
             }
             s.push(q.tsMs, q.bid, q.ask, q.vol, q.vol);
+            appended = true;
         }
-        if (medUntilMs == null || q.tsMs <= medUntilMs) {
+        if (appended && (medUntilMs == null || q.tsMs <= medUntilMs)) {
             medAcc[si].push(q.ask - q.bid);
             med[si] = medAcc[si].median();
         }

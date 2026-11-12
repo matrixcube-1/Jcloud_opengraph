@@ -10,13 +10,13 @@ Moteur de référence : Rust `engine/` (parité verrouillée 1e-9, fixture doré
 | D3 | E2 « S(h) doit couvrir T_seq » (pas d'inégalité explicite) | `S(T_seq) > 0,30` (seuil §11) ; `T_seq = nOrd·latMs·mSeq` | Choix opérationnel documenté ; m_seq=1,5 calibrable |
 | D4 | HiGHS LP/QP | `Simplex` interne (tableau primal, Bland) | JCloud ne peut embarquer de natif ; objective = Σd·S·x, contraintes marge/Kelly/concentration. Herfindahl remplacé par cap par nom (substitut linéaire) |
 | D5 | ES_RU (α=0,95) auxiliaires LP | Non câblé | Exige une matrice de scénarios ; interface prévue dans `Sizing` |
-| D6 | Fenêtre news 10 s | Paramétrable, OFF par défaut | Pas de calendrier externe dans le corpus |
+| D6 | Fenêtre news 10 s | **Non implémentée** — aucun code ni paramètre | Pas de calendrier externe dans le corpus ; entrée rectifiée (audit F7) |
 | D7 | Séances bouts par instrument | Non implémenté — freshness gate couvre l'absence de quotes | Journal d'écart : les horaires cash des indices ne sont pas modélisés explicitement |
 | D8 | Contraintes Optuna (trades≥10, abort≤30 %) | Reprise du POC, pas du document | Le document ne fixe pas de contraintes |
-| D9 | BIR sur profondeur IC | Implémenté sur volumes Dukascopy ; NaN → facteur omis (=1) | Le doc prévoit l'omission sans profondeur fiable |
+| D9 | BIR sur profondeur IC | **Classe `BIR` présente mais jamais appelée** — `birAdj` reste `NaN`, facteur omis en permanence | Conforme au doc (omission sans profondeur fiable), mais le journal antérieur survendait l'état (audit F7) |
 | D10 | Optimal stopping §10.4 | Non implémenté | Point ouvert D-10 du document lui-même ; sortie = règles §15 |
 | D11 | Provision portage (funding bouts overnight) | Non implémentée | Nécessaire seulement si position bout détenue au-delà de la séance ; résiduels marqués exécutables en attendant |
-| D12 | Hawkes MLE sur corpus réel | Estimateur implémenté + testé sur synthétique ; pas encore fitté sur épisodes corpus | `EpisodeTracker` produit les épisodes ; le fit en production attend des jours avec opportunités |
+| D12 | Hawkes MLE sur corpus réel | `fit()` appelé **uniquement par les tests** ; en production μ=α=0 → porte E2 inerte (S=1) | Les paramètres de production attendent un fit sur épisodes corpus — entrée rectifiée (audit F7) |
 
 ## Couverture implémentée
 
@@ -25,9 +25,14 @@ Moteur de référence : Rust `engine/` (parité verrouillée 1e-9, fixture doré
 - **Dynamique §10** : Hawkes MLE, Cox S(h), Hurst R/S, BIR, p_persist, EpisodeTracker.
 - **Sizing** : simplex bornes + marge ρ_min + Kelly + concentration + arrondi + re-check.
 - **Exec** : E1–E9 (E3a/b, E4 résiduel, E5 partiels, E6 unwind réel N_u, E7 résidUsd) en `docMode` ; sémantique référence inchangée hors docMode.
+  **⚠ Traçabilité (audit F2)** : cette couche n'existe **que dans le port
+  Java** — le Rust livré (`engine/src/exec.rs`) n'a que 3 raisons d'abort
+  (`NoQuote`, `KillIoc`, `BelowQMin`), pas de `doc_mode`/`stale`/`m_abort`/`n_u`.
+  Le document scellé n'est donc spécifié en exécutable que côté Java ;
+  port Rust dédié + fixtures dorées E1–E9 tracé en ROADMAP.
 - **Pipeline §19** : eval → E2 → p_persist → rollover → FIRE, partagé stratégie/replay/campagne.
 - **Validation** : MonteCarlo fill-par-fill survivant-conditionné, ProofChecks Annexe H.
-- **Tests** : 131 verts (`javac --release 11`).
+- **Tests** : 134 verts (`javac --release 11`).
 
 ## Cartographie du chemin chaud live (`onTick` → eval)
 
@@ -61,7 +66,9 @@ Rust identique (~8 o/spread vs ~40 o boxed).
 
 ## Parité replay — cutoff médiane (`med_until`)
 
-`Engine.medUntilMs` + `setMedUntil(ms)` : port de `engine.rs`/`MED_CUTOFF`.
+`Engine.medUntilMs` + `setMedUntil(ms)` : port du `MED_CUTOFF` du **POC
+Python** (`audit/poc_engine.py`) — le Rust livré n'a pas de `med_until`
+(rectification de traçabilité, audit F3).
 `CalibCli` évalue le holdout sur un engine **combiné in-sample + holdout** avec
 médiane figée à `epoch(holdout)` — l'ancien code chargeait un engine holdout
 seul dont la médiane absorbait tout le jour évalué (lookahead dans le cap
@@ -89,6 +96,23 @@ seul dont la médiane absorbait tout le jour évalué (lookahead dans le cap
   `evalAt` 95–114 → **65–69 µs** ; `evalBoutAt` 340–414 → **147–165 µs**.
   Golden bit-à-bit 18 000 résultats (3 000 instants × 3 jeux de paramètres ×
   2 fonctions) identique avant/après.
+
+## Code non câblé en production (audit F6 — décision documentée)
+
+Modules présents, testés, mais **jamais atteints** depuis `OgStrategy`,
+`Pipeline` ou `ReplayDay` — ils n'entrent ni dans le chemin chaud ni dans
+la calibration :
+
+| Module | Lignes | Rôle | Sort |
+|---|---|---|---|
+| `regime/` (8 classes) | ~1 050 | gramien SVD glissant, tension multi-sauts, porte lissée | Candidat §19 non cablé — décision : conserver pour la couche régime à venir, tests dédiés maintenus |
+| `dynamics/` BIR, EpisodeTracker, HawkesMLE, Shocks | ~320 | pièces §10 | `BIR`/`Shocks`/`EpisodeTracker`/`HawkesMLE.fit` hors production (voir D9/D12) ; `CoxSurvival`, `PPersist`, `DynamicsProbe` câblés |
+| `Engine.scan`/`replay` | ~60 | doublon historique de `ReplayDay` | conservé pour les tests `ScanDataTest` |
+
+~1 400 lignes (25 % de la production) : la couverture de la suite se lit
+en conséquence — les verrous du chemin chaud sont `core`, `validation`,
+`replay`, `sizing`, `pipeline`. Si la couche régime est abandonnée, ces
+modules seront séquestrés hors du build.
 
 ## Verdict corpus (jour 22/10, univers 54)
 
