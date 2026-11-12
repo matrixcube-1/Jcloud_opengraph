@@ -1,0 +1,18 @@
+[package]
+name = "opengraph"
+version = "0.1.0"
+edition = "2021"
+description = "Moteur d'arbitrage FX à chemins ouverts — Convention A, univers FX pur (Annexe J)."
+license = "LicenseRef-Proprietary"
+publish = false
+
+[lib]
+name = "opengraph"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+python = ["dep:pyo3"]
+
+[dependencies]
+pyo3 = { version = "0.28", features = ["extension-module"], optional = true }

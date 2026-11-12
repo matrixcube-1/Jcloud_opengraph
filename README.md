@@ -50,6 +50,9 @@ primitive position cursors, O(1) instrument routing in the strategy.
 ## Architecture
 
 ```
+engine/src/    Rust semantic reference (authoritative spec — engine.rs,
+               eval.rs, exec.rs, paths.rs, fees.rs, pybind.rs)
+
 src/main/java/opengraph/
 ├─ core/       Universe, Paths (open DFS), PathTables, ExtPathTables,
 │              Engine (book/eval/exec/settle), SymbolSeries, SpreadMedian,
