@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
+ * <b>DORMANT</b> — utilise en tests uniquement ; non cable au pipeline.
  * Detection des chocs (§10) : |retour mid| > k * sigma_roulant.
  * sigma = ecart-type des `window` rendements precedents ; k = 2 par defaut.
  * Entree du fit Hawkes — un choc = un evenement de l'intensite.

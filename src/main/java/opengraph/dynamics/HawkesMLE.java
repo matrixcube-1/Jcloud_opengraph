@@ -1,6 +1,8 @@
 package opengraph.dynamics;
 
 /**
+ * <b>DORMANT</b> — utilise en tests uniquement ; le pipeline ne
+ * l'appelle jamais (fit externe requis pour activer E2).
  * Estimateur MLE de Hawkes a noyau exponentiel (document scelle §10) :
  *   lambda(t) = mu + sum_{t_i<t} alpha * exp(-beta*(t - t_i))
  * Log-vraisemblance sur [0,T] :

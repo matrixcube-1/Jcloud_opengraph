@@ -1,6 +1,6 @@
 # Cartographie de l'audit complet — binaire JForex/JCloud
 
-État : `feature/java-port`, 131/131 tests, jar `opengraph-jforex-1.0.0.jar`.
+État : `feature/java-port`, 134/134 tests, jar `opengraph-jforex-1.0.0.jar`.
 Vérification rejouable en une commande : `bash verify_all.sh`.
 
 ## 1. Arborescence (S1)
@@ -64,7 +64,7 @@ Golden bit-à-bit identique → aucune divergence sémantique.
 
 ## 6. Chaîne de vérification (bout final = MC)
 
-`verify_all.sh` : compile → 131 tests JUnit → `VerifyAll` :
+`verify_all.sh` : compile → 134 tests JUnit → `VerifyAll` :
 S1 comptes+ProofChecks → S2 injection → S4 main=centime → S5 perf →
 S6 alloc → **MonteCarlo E9** (survie=1 : 300 exec, pnl = net évalué ;
 survie=0 : tout meurt ; corpus réel : eval→execSeq chaîné).
@@ -74,7 +74,33 @@ survie=0 : tout meurt ; corpus réel : eval→execSeq chaîné).
 - **Démo JForex réelle** : 3 bouts dynamiques à confirmer en ligne ;
   `OgStrategy` jamais exécuté dans la plateforme (compilé + lié à API 4.9.8).
 - **Exec bout** : évalué, `SKIP` en live (Solution A — FX only).
-- **Parité tick-par-tick Java↔Rust** execSeq/settle : fixture dorée + tests
-  E1–E9 couvrent la sémantique ; pas de rejoue croisée complète.
+- **Parité tick-par-tick Java↔Rust** execSeq : **prouvée** (12/11) —
+  rows `exec2` de la fixture dorée couvrent Done, KillIoc jambe 0,
+  KillIoc jambe 1 + unwind (−2,80 $), BelowQMin + unwind, NoQuote +
+  unwind, volGuard partiel — PnL égal à 1e-9 relatif.
 - **JCloud** : upload via espace client Dukascopy (compte DEMO sauvegardé
-  dans JForex4 local — `users.xml`, dernier login 07/11).
+  dans JForex4 local — `users.xml`, dernier login 07/11). Jar prêt :
+  `jfMainClass` posé, `tools/PackJfx.java` (IClient→packToJfx) compilé.
+
+## Mesure alpha — journal venue cTrader (12/11)
+
+Rejoue des détections réelles `arb_cs_journal` (4 jours, ~230 k ticks)
+dans le moteur Rust + exec_seq, à `lat=1,0 ms` (latence cible JCloud) :
+
+| jour | épisodes | détecté | réalisé | survie |
+|---|---|---|---|---|
+| 11-02 | 0 | — | — | — |
+| 11-03 | 24 | +1,80 $ | −0,98 $ | −54 % |
+| 11-04 | 8 | +0,66 $ | −1,37 $ | −206 % |
+| 11-10 | 0 | — | — | — |
+
+Survie identique à `lat=2,5 ms` → le kill n'est PAS la latence des
+jambes mais la sélection adverse sur rafraîchissement de quote stale
+(le journal est échantillonné ~1–2 ticks/s ; la dernière quote « fraîche
+à 8 s » est en fait périmée et saute contre l'exécution). Sweep
+`fresh_ms` ∈ {500, 2000, 4000, 8000} : aucun seuil ne réalise un gain
+répliqué (le +0,88 $ à fresh=2000 sur 11-03 ne se réplique pas sur
+11-04 : −1,37 $). Verdict sur ce canal : pas d'alpha exécutable.
+Réserve : granularité du journal (borne optimiste/pessimiste
+documentée) et feed cTrader ≠ Dukascopy — la rejoue sur corpus
+Dukascopy (la venue de JCloud) reste le test conclusif.

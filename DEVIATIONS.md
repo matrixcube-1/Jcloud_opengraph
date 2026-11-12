@@ -32,7 +32,7 @@ Moteur de référence : Rust `engine/` (parité verrouillée 1e-9, fixture doré
   port Rust dédié + fixtures dorées E1–E9 tracé en ROADMAP.
 - **Pipeline §19** : eval → E2 → p_persist → rollover → FIRE, partagé stratégie/replay/campagne.
 - **Validation** : MonteCarlo fill-par-fill survivant-conditionné, ProofChecks Annexe H.
-- **Tests** : 134 verts (`javac --release 11`).
+- **Tests** : 131 verts (`javac --release 11`).
 
 ## Cartographie du chemin chaud live (`onTick` → eval)
 
@@ -105,14 +105,14 @@ la calibration :
 
 | Module | Lignes | Rôle | Sort |
 |---|---|---|---|
-| `regime/` (8 classes) | ~1 050 | gramien SVD glissant, tension multi-sauts, porte lissée | Candidat §19 non cablé — décision : conserver pour la couche régime à venir, tests dédiés maintenus |
-| `dynamics/` BIR, EpisodeTracker, HawkesMLE, Shocks | ~320 | pièces §10 | `BIR`/`Shocks`/`EpisodeTracker`/`HawkesMLE.fit` hors production (voir D9/D12) ; `CoxSurvival`, `PPersist`, `DynamicsProbe` câblés |
+| `regime/` (8 classes) | ~1 050 | gramien SVD glissant, tension multi-sauts, porte lissée | **Séquestré** (12/11) : `package-info` marqué DORMANT — conservé pour la couche régime à venir, activation = décision séparée + recalibration |
+| `dynamics/` BIR, EpisodeTracker, HawkesMLE, Shocks | ~320 | pièces §10 | **Séquestré** (12/11) : javadoc `<b>DORMANT</b>` sur les classes tests-only ; `CoxSurvival`, `PPersist`, `DynamicsProbe` restent câblés |
 | `Engine.scan`/`replay` | ~60 | doublon historique de `ReplayDay` | conservé pour les tests `ScanDataTest` |
 
 ~1 400 lignes (25 % de la production) : la couverture de la suite se lit
 en conséquence — les verrous du chemin chaud sont `core`, `validation`,
-`replay`, `sizing`, `pipeline`. Si la couche régime est abandonnée, ces
-modules seront séquestrés hors du build.
+`replay`, `sizing`, `pipeline`. Marquage DORMANT appliqué au code
+(décision séquestrer appliquée, pas seulement documentée).
 
 ## Verdict corpus (jour 22/10, univers 54)
 

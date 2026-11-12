@@ -41,7 +41,22 @@ JUNIT=$(find_jar JUNIT_JAR "tools/junit*.jar" "lib/junit*.jar" "deps/junit*.jar"
 
 # --- separateur classpath (';' Windows MSYS/MinGW, ':' Unix) -------------------
 case "$(uname -s 2>/dev/null || echo Windows)" in
-    MINGW*|MSYS*|CYGWIN*) SEP=';' ;;
+    MINGW*|MSYS*|CYGWIN*)
+        SEP=';'
+        # MSYS convertit les args '-cp a;b' en liste Unix -> casserait le
+        # classpath du javac Windows. On gele la conversion et on donne a
+        # javac des chemins natifs (C:/...) pour tout ce qui vient de
+        # l'environnement ou de la detection.
+        export MSYS_NO_PATHCONV=1
+        if command -v cygpath >/dev/null 2>&1; then
+            for v in JAVAC JAVA API JUNIT; do
+                p="${!v}"
+                case "$p" in
+                    /*) printf -v "$v" '%s' "$(cygpath -m "$p")" ;;
+                esac
+            done
+        fi
+        ;;
     *) SEP=':' ;;
 esac
 MAIN=target/classes

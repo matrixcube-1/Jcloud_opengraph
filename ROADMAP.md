@@ -3,7 +3,7 @@
 ## Done (verified)
 
 - [x] Full audit S1–S7: counts, mappings, formulas, parity, perf, bottlenecks
-- [x] `verify_all.sh` — single-command chained verification (131 tests + MC)
+- [x] `verify_all.sh` — single-command chained verification (134 tests + MC)
 - [x] Zero-alloc hot loop: buffers, primitive median, primitive cursors,
       prefix cache, O(1) routing — golden bit-for-bit preserved
 - [x] `med_until` port — holdout lookahead closed in replay

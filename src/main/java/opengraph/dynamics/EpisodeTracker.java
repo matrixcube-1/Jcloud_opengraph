@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ * <b>DORMANT</b> — utilise en tests uniquement ; non cable au pipeline.
  * Episodes d'opportunite (§10/E9) : ouvert quand un candidat depasse le
  * seuil, ferme quand le signal retombe. Sortie = entree du fit Hawkes
  * (durees de vie des desequilibres) et des metriques §15.2.
