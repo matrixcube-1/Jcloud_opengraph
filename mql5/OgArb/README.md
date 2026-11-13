@@ -44,6 +44,12 @@ paires configurées par timer (`InpEvalMs`), quel que soit le symbole du chart.
 
 ### Exécution — **désactivée par défaut**
 - `InpAllowLive` — ⚠ `true` envoie de vrais ordres séquentiels IOC
+- `InpAllowHedgedAcct` — tolère un compte **HEDGING** en live (déf. `false` → fail-closed)
+
+> **Mode de marge** : l'EA lit `ACCOUNT_MARGIN_MODE` au démarrage et le journalise.
+> En live, un compte **NETTING** est requis (même convention que le client cTrader :
+> la jambe de sortie compense la position d'entrée). Un compte HEDGING fait échouer
+> `OnInit` sauf `InpAllowHedgedAcct=true`. La détection fonctionne sur les deux modes.
 - `InpTauSlipBp`, `InpQMin`, `InpMinSeqGapMs`, `InpBreakerFails`, `InpMagic`
 
 ### Journal

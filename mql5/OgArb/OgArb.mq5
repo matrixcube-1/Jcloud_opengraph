@@ -34,6 +34,7 @@ input int    InpSessToUTC    = -1;            // Session fin (h UTC)
 
 input group "=== Execution ==="
 input bool   InpAllowLive    = false;         // AUTORISE les ordres reels
+input bool   InpAllowHedgedAcct = false;      // tolere un compte HEDGING en live
 input double InpTauSlipBp    = 0.69;          // Slippage IOC tolere (bp)
 input double InpQMin         = 0.5;           // Fraction fill min acceptee
 input long   InpMinSeqGapMs  = 2000;          // Gap min entre sequences
@@ -212,6 +213,18 @@ int OnInit()
          eng.addSym(FX_DEF[i],nm);
       }
    if(eng.nSym==0){ Print("OgArb: aucun symbole"); return INIT_FAILED; }
+   //--- mode de marge : netting requis en live (Convention compte NETTED)
+   long mm=AccountInfoInteger(ACCOUNT_MARGIN_MODE);
+   string mmS=(mm==ACCOUNT_MARGIN_MODE_RETAIL_NETTING)?"NETTING":
+              (mm==ACCOUNT_MARGIN_MODE_EXCHANGE)?"EXCHANGE":"HEDGING";
+   PrintFormat("OgArb: ACCOUNT_MARGIN_MODE=%s",mmS);
+   if(mm==ACCOUNT_MARGIN_MODE_RETAIL_HEDGING && InpAllowLive && !InpAllowHedgedAcct)
+   {
+      Print("OgArb: compte HEDGING refuse en mode live (NETTED requis)");
+      return INIT_FAILED;
+   }
+   if(mm==ACCOUNT_MARGIN_MODE_EXCHANGE && InpAllowLive)
+      Print("OgArb: WARN mode EXCHANGE - filling policy a verifier");
    medWin=(int)MathMin(MathMax((double)InpMedWindow,16.0),256.0);
    eng.buildPaths(MathMin(MathMax(InpMaxLegs,1),3));
    PrintFormat("OgArb: %d syms, %d chemins (max %d jambes)",eng.nSym,eng.nPaths,InpMaxLegs);
@@ -220,8 +233,8 @@ int OnInit()
    gLogH=FileOpen(InpLogFile,FILE_READ|FILE_WRITE|FILE_TXT|FILE_ANSI|FILE_COMMON);
    if(gLogH!=INVALID_HANDLE) FileSeek(gLogH,0,SEEK_END);
    EventSetMillisecondTimer(InpEvalMs);
-   jlog("EVT",StringFormat("\"msg\":\"OgArb start %d syms %d paths live=%s\"",
-        eng.nSym,eng.nPaths,InpAllowLive?"true":"false"));
+   jlog("EVT",StringFormat("\"msg\":\"OgArb start %d syms %d paths live=%s acct=%s\"",
+        eng.nSym,eng.nPaths,InpAllowLive?"true":"false",mmS));
    return INIT_SUCCEEDED;
 }
 
